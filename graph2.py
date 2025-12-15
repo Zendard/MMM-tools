@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 from graphviz import Digraph
 import sys
 
+# Test for filepath argument
 try:
     XML_FILE = sys.argv[1]
 except:
@@ -11,10 +12,6 @@ except:
 tree = ET.parse(XML_FILE)
 root = tree.getroot()
 
-# -------------------------
-# Extract configuration data
-# -------------------------
-
 # Number of sources (inputs)
 sources = root.find("Sources")
 num_sources = len(sources.findall("Source"))
@@ -23,7 +20,7 @@ num_sources = len(sources.findall("Source"))
 queues_xml = root.find("Queues").findall("Queue")
 queue_lengths = [int(q.find("Length").text) for q in queues_xml]
 
-# Server routing (destination IDs)
+# Queues connected to destinations
 servers_xml = root.find("Servers").findall("Server")
 destinations = [(int(s.find("Destination").text), int(
     s.find("Queue").text)) for s in servers_xml]
@@ -36,43 +33,32 @@ for e in routing_xml:
     j = int(e.attrib["j"])
     routing_matrix[(i, j)] = float(e.text)
 
-# -----------------
-# Build GraphViz Diagram
-# -----------------
+# Build diagram
 dot = Digraph("RouterDiagram", format="png")
 dot.attr(rankdir='LR', fontsize='12', splines="polyline",
          ranksep="3.0", nodesep="0.2")
 
-# -----------------
-# Inputs (Sources)
-# -----------------
+# Add inputs
 for i in range(num_sources):
     dot.node(f"IN{i}", f"Source {i}", shape="box")
 
 
-# Compute combined capacity (sum of all queue lengths)
-
+# Add queues
 for i in range(len(queue_lengths)):
     buf_name = f"BUF{i}"
     dot.node(buf_name, f"C = {queue_lengths[i]}", shape="box",
              style="filled", fillcolor="#C1FFC1")
     for j in range(num_sources):
+        # Connect inputs to queues
         dot.edge(f"IN{j}", buf_name)
 
-# Connect each source to each buffer
-
-# -----------------
-# Destinations
-# -----------------
+# Add destinations
 unique_destinations = sorted(set(destinations))
-
 for (d, b) in unique_destinations:
     dot.node(f"DEST{d}", f"Destination {d}", shape="box")
 
-    # Determine how many servers output to this destination
+    # Connect queues to destinations
     count = destinations.count((d, b))
-
-    # Draw that many edges (similar to your existing output_lines approach)
     for _ in range(count):
         dot.edge(f"BUF{b}", f"DEST{d}")
 
